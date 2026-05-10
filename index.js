@@ -313,6 +313,39 @@ app.post('/send-proactive', async (req, res) => {
   }
 });
 
+// ── IN-APP CHAT ENDPOINT ──────────────────────────────────
+// Called by the Replit backend when a user sends a message
+// in the in-app assistant screen
+app.post('/chat', async (req, res) => {
+  const { messages, userContext, userId } = req.body;
+
+  if (!messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: 'messages array is required' });
+  }
+
+  try {
+    // Build system prompt with user context injected
+    const systemWithContext = userContext
+      ? SYSTEM_PROMPT + '\n\n' + userContext
+      : SYSTEM_PROMPT;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      system: systemWithContext,
+      messages: messages,
+    });
+
+    const reply = response.content[0].text.trim();
+
+    res.json({ message: reply, success: true });
+
+  } catch (err) {
+    console.error('Chat error:', err);
+    res.status(500).json({ error: err.message || 'Something went wrong' });
+  }
+});
+
 // ── HEALTH CHECK ──────────────────────────────────────────
 app.get('/', (req, res) => res.send('Twelve assistant is running'));
 
